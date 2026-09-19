@@ -10,6 +10,17 @@ terraform {
       version = "~> 4.0"
     }
   }
+
+  # Shared remote state. Team-owned, not laptop-owned: this state holds the dev
+  # EC2/RDS/S3 stack and tls_private_key.dev_key (the dev SSH key is recoverable
+  # only from here -- see docs/operations/OWNERSHIP_HANDOVER.md).
+  backend "s3" {
+    bucket         = "ocpctl-tfstate-346869059911"
+    key            = "dev/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "ocpctl-tf-locks"
+    encrypt        = true
+  }
 }
 
 provider "aws" {
@@ -194,6 +205,16 @@ resource "aws_instance" "dev_server" {
 
   vpc_security_group_ids = [aws_security_group.dev_server.id]
   iam_instance_profile   = aws_iam_instance_profile.dev_server.name
+
+  # The shared account runs a team cleanup Lambda (aws-reporting) that terminates
+  # any instance older than 34 days unless it is marked "Save" in a Google Sheet.
+  # It destroyed the previous dev server on 2026-09-19. The Lambda catches and logs
+  # the resulting failure, so this blocks it without disrupting anyone else's
+  # cleanup. Production has the same protection set.
+  # See docs/operations/OWNERSHIP_HANDOVER.md section 4d.
+  #
+  # To intentionally destroy dev: set this to false and apply, THEN destroy.
+  disable_api_termination = true
 
   root_block_device {
     volume_size           = 50
