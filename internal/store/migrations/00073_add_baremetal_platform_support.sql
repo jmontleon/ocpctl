@@ -1,4 +1,4 @@
--- 00071_add_baremetal_platform_support.sql
+-- 00073_add_baremetal_platform_support.sql
 -- Add bare-metal (agent-based) platform support to the clusters table constraint.
 
 -- +goose Up
