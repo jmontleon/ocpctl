@@ -26,7 +26,7 @@ type Profile struct {
 	PlatformConfig     PlatformConfig        `yaml:"platformConfig"`
 	PostDeployment     *PostDeploymentConfig `yaml:"postDeployment,omitempty"`
 	DefaultAddons      []AddonReference      `yaml:"defaultAddons,omitempty" json:"default_addons,omitempty"`
-	Metadata           *MetadataConfig       `yaml:"metadata,omitempty"`
+	Metadata           *MetadataConfig       `yaml:"metadata,omitempty" json:"metadata,omitempty"`
 }
 
 // VersionConfig defines OpenShift version constraints
@@ -408,6 +408,15 @@ type MetadataConfig struct {
 	Capabilities []string               `yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
 	Capacity     map[string]interface{} `yaml:"capacity,omitempty" json:"capacity,omitempty"`
 	Notes        []string               `yaml:"notes,omitempty" json:"notes,omitempty"`
+	// Warnings are caveats shown in the create flow before a user commits to a
+	// cluster: unsupported lifecycle operations, cost traps, and the like. Keep
+	// each entry short and actionable.
+	//
+	// Note for anyone adding a warning: the YAML key alone is not enough. It must
+	// also survive to ProfileResponse, and YAML decoding is lenient — an unknown
+	// or untagged field is dropped with no error. See the tests in
+	// metadata_warnings_test.go.
+	Warnings []string `yaml:"warnings,omitempty" json:"warnings,omitempty"`
 }
 
 // ReservedTagKeys are tag keys that cannot be overridden by users
