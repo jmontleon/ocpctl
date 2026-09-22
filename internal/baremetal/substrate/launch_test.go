@@ -137,20 +137,39 @@ func TestLaunch_HappyPath(t *testing.T) {
 	assert.Equal(t, "198.51.100.9", names["*.apps.mycluster.example.com."])
 }
 
-func TestLaunch_AllowCIDRsLocksDownAllPorts(t *testing.T) {
+func TestLaunch_AllowCIDRsPinsClusterPortsAndAddsSSH(t *testing.T) {
 	e, _, _, c := happyClients()
 	spec := testSpec()
 	spec.AllowCIDRs = []string{"203.0.113.0/24"}
 	_, err := launch(context.Background(), c, spec)
 	require.NoError(t, err)
 
-	// An explicit allow-list pins both the cluster endpoints and SSH to it, and
-	// nothing is opened to the world or to the (unused) caller IP.
-	for _, port := range []int32{22, 6443, 443, 80} {
+	// An explicit allow-list replaces the world-open default on the cluster
+	// endpoints and does not fall back to the caller IP there.
+	for _, port := range []int32{6443, 443, 80} {
 		assert.True(t, authorized(e.authorizeCalls, port, "203.0.113.0/24"), "port %d should allow the allow-listed CIDR", port)
 		assert.False(t, authorized(e.authorizeCalls, port, "0.0.0.0/0"), "port %d should not be open to the world", port)
 		assert.False(t, authorized(e.authorizeCalls, port, "203.0.113.7/32"), "port %d should not fall back to the caller IP", port)
 	}
+
+	// SSH is the exception: the allow-list is added to the caller, never
+	// substituted for it, because the caller is the worker that SSHes in to
+	// provision the host.
+	assert.True(t, authorized(e.authorizeCalls, 22, "203.0.113.0/24"), "ssh should allow the allow-listed CIDR")
+	assert.True(t, authorized(e.authorizeCalls, 22, "203.0.113.7/32"), "ssh must keep the provisioning caller's IP")
+	assert.False(t, authorized(e.authorizeCalls, 22, "0.0.0.0/0"), "ssh should never be open to the world")
+}
+
+// An allow-list that already contains the caller's IP must not authorize it
+// twice: AWS rejects the repeat with InvalidPermission.Duplicate.
+func TestLaunch_AllowCIDRsOverlappingCallerIPAuthorizedOnce(t *testing.T) {
+	e, _, _, c := happyClients()
+	spec := testSpec()
+	spec.AllowCIDRs = []string{"203.0.113.7/32", "203.0.113.0/24"}
+	_, err := launch(context.Background(), c, spec)
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, authorizedCount(e.authorizeCalls, 22, "203.0.113.7/32"))
 }
 
 func TestLaunch_InstanceTypeNotOffered(t *testing.T) {
@@ -174,6 +193,25 @@ func hasTag(specs []ec2types.TagSpecification, k, v string) bool {
 		}
 	}
 	return false
+}
+
+// authorizedCount counts recorded IpPermissions covering the given port from
+// the given CIDR. AWS rejects a repeat, so more than one is a bug.
+func authorizedCount(calls []*ec2.AuthorizeSecurityGroupIngressInput, port int32, cidr string) int {
+	n := 0
+	for _, call := range calls {
+		for _, perm := range call.IpPermissions {
+			if aws.ToInt32(perm.FromPort) != port || aws.ToInt32(perm.ToPort) != port {
+				continue
+			}
+			for _, r := range perm.IpRanges {
+				if aws.ToString(r.CidrIp) == cidr {
+					n++
+				}
+			}
+		}
+	}
+	return n
 }
 
 // authorized scans every recorded ingress call for an IpPermission covering the

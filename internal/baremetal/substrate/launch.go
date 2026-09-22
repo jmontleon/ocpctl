@@ -188,20 +188,20 @@ func ensureSecurityGroup(ctx context.Context, c clients, spec LaunchSpec, tags m
 	if len(clusterCIDRs) == 0 {
 		clusterCIDRs = []string{"0.0.0.0/0"}
 	}
-	for _, cidr := range clusterCIDRs {
+	for _, cidr := range dedupeCIDRs(clusterCIDRs) {
 		if err := authorizePorts(ctx, c, sgID, clusterPorts, cidr); err != nil {
 			return "", fmt.Errorf("substrate authorize cluster ingress: %w", err)
 		}
 	}
 
 	// SSH to the substrate host is administrative access, not part of the
-	// cluster's public surface, so it stays restricted to the caller's IP (or the
-	// profile's explicit allow-list).
-	sshCIDRs := spec.AllowCIDRs
-	if len(sshCIDRs) == 0 {
-		sshCIDRs = detectCallerCIDRs(c.get)
-	}
-	for _, cidr := range sshCIDRs {
+	// cluster's public surface, so it stays restricted. The caller is always
+	// admitted: the worker that runs this is the one that SSHes in to provision
+	// the host (lifecycle.Create -> host.Provision), so dropping its IP would
+	// break the install outright. A profile allow-list therefore *adds*
+	// operator access on top rather than replacing it.
+	sshCIDRs := append(detectCallerCIDRs(c.get), spec.AllowCIDRs...)
+	for _, cidr := range dedupeCIDRs(sshCIDRs) {
 		if err := authorizePorts(ctx, c, sgID, sshPorts, cidr); err != nil {
 			return "", fmt.Errorf("substrate authorize ssh ingress: %w", err)
 		}
@@ -328,6 +328,23 @@ func aRecordChange(action r53types.ChangeAction, name, value string) r53types.Ch
 			ResourceRecords: []r53types.ResourceRecord{{Value: aws.String(value)}},
 		},
 	}
+}
+
+// dedupeCIDRs drops repeated entries, preserving order. Authorizing the same
+// CIDR twice on one port fails with InvalidPermission.Duplicate, which matters
+// once the caller's own IP is unioned with a profile allow-list that may
+// already contain it.
+func dedupeCIDRs(cidrs []string) []string {
+	seen := make(map[string]struct{}, len(cidrs))
+	out := make([]string, 0, len(cidrs))
+	for _, cidr := range cidrs {
+		if _, dup := seen[cidr]; dup {
+			continue
+		}
+		seen[cidr] = struct{}{}
+		out = append(out, cidr)
+	}
+	return out
 }
 
 func authorizePorts(ctx context.Context, c clients, sgID string, ports []int32, cidr string) error {
