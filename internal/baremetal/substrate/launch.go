@@ -20,7 +20,14 @@ import (
 const instanceRunningTimeout = 10 * time.Minute
 
 var (
-	basePorts    = []int32{22, 6443, 443, 80}
+	// clusterPorts are the cluster's public endpoints reached through the host
+	// EIP: kube API (6443) and ingress (443/80). Like any public OpenShift
+	// cluster these are open to the internet by default so whoever requested the
+	// cluster can reach it.
+	clusterPorts = []int32{6443, 443, 80}
+	// sshPorts is administrative SSH to the underlying substrate host, kept
+	// restricted to the deployer's IP (or the profile's explicit allow-list).
+	sshPorts     = []int32{22}
 	hairpinPorts = []int32{6443, 443, 80}
 )
 
@@ -172,13 +179,31 @@ func ensureSecurityGroup(ctx context.Context, c clients, spec LaunchSpec, tags m
 	}
 	sgID := aws.ToString(sg.GroupId)
 
-	cidrs := spec.AllowCIDRs
-	if len(cidrs) == 0 {
-		cidrs = detectCallerCIDRs(c.get)
+	// Cluster endpoints are internet-accessible like any public OpenShift
+	// cluster. ocpctl runs on a server, so the old behavior of locking these to
+	// the deployer's IP left the client that requested the cluster (and everyone
+	// else) unable to reach the API and console. A profile may still pin them by
+	// setting AllowCIDRs.
+	clusterCIDRs := spec.AllowCIDRs
+	if len(clusterCIDRs) == 0 {
+		clusterCIDRs = []string{"0.0.0.0/0"}
 	}
-	for _, cidr := range cidrs {
-		if err := authorizePorts(ctx, c, sgID, basePorts, cidr); err != nil {
-			return "", fmt.Errorf("substrate authorize ingress: %w", err)
+	for _, cidr := range clusterCIDRs {
+		if err := authorizePorts(ctx, c, sgID, clusterPorts, cidr); err != nil {
+			return "", fmt.Errorf("substrate authorize cluster ingress: %w", err)
+		}
+	}
+
+	// SSH to the substrate host is administrative access, not part of the
+	// cluster's public surface, so it stays restricted to the caller's IP (or the
+	// profile's explicit allow-list).
+	sshCIDRs := spec.AllowCIDRs
+	if len(sshCIDRs) == 0 {
+		sshCIDRs = detectCallerCIDRs(c.get)
+	}
+	for _, cidr := range sshCIDRs {
+		if err := authorizePorts(ctx, c, sgID, sshPorts, cidr); err != nil {
+			return "", fmt.Errorf("substrate authorize ssh ingress: %w", err)
 		}
 	}
 	return sgID, nil
