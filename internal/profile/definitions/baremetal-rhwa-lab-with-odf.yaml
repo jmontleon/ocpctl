@@ -1,5 +1,5 @@
-name: baremetal-rhwa-lab
-displayName: Emulated Bare Metal RHWA Lab (Agent-Based)
+name: baremetal-rhwa-lab-with-odf
+displayName: Emulated Bare Metal RHWA Lab with ODF (Agent-Based)
 description: Compact 3-node agent-based cluster on a nested-virt EC2 host for RHWA/Medik8s
   node remediation testing. Provisions the host, libvirt VMs and sushy-tools BMCs,
   then installs via the Agent-Based Installer. Workers join post-install via a metal3
@@ -83,8 +83,10 @@ platformConfig:
     apiVIP: 192.168.126.5
     ingressVIP: 192.168.126.6
     sushyPort: 8000
-    # No ODF: this profile installs RHWA fencing only. The
-    # baremetal-rhwa-lab-with-odf profile is the same cluster plus ODF-external.
+    odf:
+      enabled: true
+      # ceph sizing/channel default in-code (3 OSDs, 200 GB usable, replica 3,
+      # squid, channel stable-<ocp-minor> resolved against the catalog).
 metadata:
   notes:
   - Provisions the full substrate (EC2 host, libvirt VMs, sushy-tools BMCs) natively via ocpctl
