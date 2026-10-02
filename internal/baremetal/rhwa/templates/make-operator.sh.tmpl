@@ -1,0 +1,42 @@
+set -euo pipefail
+export KUBECONFIG="{{.Kubeconfig}}"
+export PATH="/usr/local/bin:$PATH"
+OC="{{.RawOC}}"
+{{if .IsNHC}}# NHC's bundle build (dev-olm-validate-inputs) requires CONSOLE_PLUGIN_IMAGE and
+# MUST_GATHER_IMAGE as DIGEST pullspecs. Resolve the published tags to digests
+# (no pull) via `oc image info`; if either can't be resolved the build will fail
+# and the caller falls back to the catalog.
+devenv=""
+cpref="quay.io/medik8s/node-remediation-console:latest"
+mgref="quay.io/medik8s/must-gather:latest"
+cpd="$($OC image info --filter-by-os=linux/amd64 "$cpref" 2>/dev/null | sed -n 's/^Digest:[[:space:]]*//p' | head -1)"
+mgd="$($OC image info --filter-by-os=linux/amd64 "$mgref" 2>/dev/null | sed -n 's/^Digest:[[:space:]]*//p' | head -1)"
+if [[ "$cpd" == sha256:* && "$mgd" == sha256:* ]]; then
+  devenv="CONSOLE_PLUGIN_IMAGE=${cpref%:*}@${cpd} MUST_GATHER_IMAGE=${mgref%:*}@${mgd}"
+else
+  echo "WARN: could not resolve NHC console-plugin/must-gather digests; dev-olm-deploy will fail -> catalog fallback" >&2
+fi
+{{else}}devenv=""
+{{end}}wd="$(mktemp -d "${TMPDIR:-/tmp}/rhwa-op.XXXXXX")"; trap 'rm -rf "$wd"' EXIT
+git clone --depth 1 '{{.Repo}}' "$wd/src"
+cd "$wd/src"
+# A command-line make var overrides the Makefile default everywhere it is used:
+# force podman and point KUBECTL at the host oc. Images build + push to the
+# registry, then operator-sdk run bundle installs the operator (OLM-managed).
+margs="SKIP_KIND=true CONTAINER_TOOL=podman KUBECTL=$OC DEV_OLM_OPERATOR_NAMESPACE={{.NS}} TOOLS_DIR={{.ToolsDir}}"
+if make dev-olm-deploy $margs DEV_REGISTRY={{.Registry}} $devenv; then
+  echo "{{.Op}} deployed from source (OLM-managed in {{.NS}})"
+  exit 0
+fi
+# Diagnose BEFORE cleanup deletes the pods, then undeploy the partial OLM install
+# so the catalog fallback doesn't stack a second subscription for this operator.
+echo "### dev-olm-deploy failed for {{.Op}}; diagnostics before cleanup ###"
+$OC -n {{.NS}} get pods -o wide || true
+for pod in $($OC -n {{.NS}} get pods -o name 2>/dev/null | grep -- '{{.Op}}' || true); do
+  echo "--- $pod events ---"; $OC -n {{.NS}} describe "$pod" 2>/dev/null | sed -n '/Events:/,$p' || true
+  echo "--- $pod logs ---";   $OC -n {{.NS}} logs "$pod" --all-containers --tail=40 2>/dev/null || true
+done
+echo "--- recent namespace events ---"; $OC -n {{.NS}} get events --sort-by=.lastTimestamp 2>/dev/null | tail -20 || true
+echo "### cleaning up partial OLM install before catalog fallback ###"
+make dev-olm-undeploy $margs >/dev/null 2>&1 || true
+exit 1

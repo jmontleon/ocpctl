@@ -14,6 +14,9 @@ func InstallOperators(ctx context.Context, r runner, spec Spec) error {
 }
 
 func installOperators(ctx context.Context, r runner, spec Spec, sleep func(time.Duration)) error {
+	if spec.FromSource {
+		return installFromSource(ctx, r, spec, sleep)
+	}
 	script, err := renderOperators(spec)
 	if err != nil {
 		return err

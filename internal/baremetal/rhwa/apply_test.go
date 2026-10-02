@@ -14,10 +14,14 @@ type fakeRunner struct {
 	runs     []string
 	captures []string
 	capture  func(cmd string) (string, error)
+	runHook  func(script string) error // optional: inject a Run error per script
 }
 
 func (f *fakeRunner) Run(_ context.Context, script string) error {
 	f.runs = append(f.runs, script)
+	if f.runHook != nil {
+		return f.runHook(script)
+	}
 	return nil
 }
 

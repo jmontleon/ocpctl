@@ -44,6 +44,12 @@ type Spec struct {
 	Operators  []Operator        // from the rhwa addon definition
 	Nodes      []host.VM         // masters + workers + spares
 	UUIDs      map[string]string // domain name -> libvirt UUID (Redfish system id)
+
+	// FromSource installs the operators via their upstream make dev-olm-deploy
+	// (build + push + operator-sdk run bundle) instead of an OLM catalog
+	// Subscription; DevRegistry is the image push target (default ttl.sh).
+	FromSource  bool
+	DevRegistry string
 }
 
 func (s Spec) ns() string {

@@ -192,6 +192,9 @@ type BareMetalConfig struct {
 	// builds+deploys each from upstream via its make dev-olm-deploy; "none" skips
 	// the operators (and fence_redfish fencing) entirely.
 	RHWAInstallMethod string `yaml:"rhwaInstallMethod,omitempty" json:"rhwa_install_method,omitempty"`
+	// RHWADevRegistry is the image push target for rhwaInstallMethod=source
+	// (make dev-olm-deploy). Empty defaults to ttl.sh (public, ephemeral).
+	RHWADevRegistry string `yaml:"rhwaDevRegistry,omitempty" json:"rhwa_dev_registry,omitempty"`
 
 	ODF *ODFConfig `yaml:"odf,omitempty" json:"odf,omitempty"` // optional ODF-external + single-VM Ceph
 }

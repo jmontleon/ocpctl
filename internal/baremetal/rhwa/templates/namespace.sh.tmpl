@@ -1,0 +1,15 @@
+set -euo pipefail
+{{.OC}} apply -f - <<'EOF'
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{.NS}}
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: rhwa-operatorgroup
+  namespace: {{.NS}}
+# Empty spec = AllNamespaces install mode. NHC and FAR are AllNamespaces-only.
+spec: {}
+EOF

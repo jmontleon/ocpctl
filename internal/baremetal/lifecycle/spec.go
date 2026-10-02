@@ -341,12 +341,14 @@ func buildRHWASpec(in Input, nodes []host.VM, uuids map[string]string, user, pas
 		ops = append(ops, rhwa.Operator{Name: o.Name, Channel: o.Channel, Source: o.Source})
 	}
 	return rhwa.Spec{
-		NetGateway: netGateway(in.BareMetal.NetworkCIDR),
-		SushyPort:  in.BareMetal.SushyPort,
-		SushyUser:  user,
-		SushyPass:  pass,
-		Operators:  ops,
-		Nodes:      nodes,
-		UUIDs:      uuids,
+		NetGateway:  netGateway(in.BareMetal.NetworkCIDR),
+		SushyPort:   in.BareMetal.SushyPort,
+		SushyUser:   user,
+		SushyPass:   pass,
+		Operators:   ops,
+		Nodes:       nodes,
+		UUIDs:       uuids,
+		FromSource:  rhwaMethod(in) == rhwaMethodSource,
+		DevRegistry: in.BareMetal.RHWADevRegistry, // empty -> rhwa default (ttl.sh)
 	}
 }

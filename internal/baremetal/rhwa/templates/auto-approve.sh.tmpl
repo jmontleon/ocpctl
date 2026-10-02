@@ -1,0 +1,13 @@
+set -euo pipefail
+# operator-sdk run bundle creates Manual-approval Subscriptions and self-approves
+# only their first plan; as more operators are added OLM re-resolves and emits
+# new plans that then sit unapproved and stall rollout. Flip every Subscription
+# in the namespace to Automatic and approve any pending plan (idempotent; once a
+# Subscription is Automatic, OLM auto-approves its later plans).
+for sub in $({{.OC}} -n {{.NS}} get subscription -o name 2>/dev/null); do
+  {{.OC}} -n {{.NS}} patch "$sub" --type=merge -p '{"spec":{"installPlanApproval":"Automatic"}}' >/dev/null 2>&1 || true
+done
+for ip in $({{.OC}} -n {{.NS}} get installplan -o name 2>/dev/null); do
+  [ "$({{.OC}} -n {{.NS}} get "$ip" -o jsonpath='{.spec.approved}' 2>/dev/null)" = "true" ] && continue
+  {{.OC}} -n {{.NS}} patch "$ip" --type=merge -p '{"spec":{"approved":true}}' >/dev/null 2>&1 || true
+done

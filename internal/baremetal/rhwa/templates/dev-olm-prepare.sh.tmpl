@@ -1,0 +1,26 @@
+set -euo pipefail
+# Prepare the host toolchain for building the operators from source: go/make/git
+# plus a docker->podman shim (several operator Makefiles hardcode `docker`, so a
+# make variable can't redirect them). podman + oc are already on the host.
+pkgs=""
+command -v go     >/dev/null 2>&1 || pkgs="$pkgs golang"
+command -v make   >/dev/null 2>&1 || pkgs="$pkgs make"
+command -v git    >/dev/null 2>&1 || pkgs="$pkgs git"
+command -v docker >/dev/null 2>&1 || pkgs="$pkgs podman-docker"
+[ -n "$pkgs" ] && dnf install -y $pkgs >/dev/null
+# Silence podman-docker's "Emulate Docker CLI using podman" notice.
+mkdir -p /etc/containers && touch /etc/containers/nodocker
+# Clone the medik8s tools repo once and bump dev.mk's `run bundle` timeout
+# (default 2m is too short on nested virt); operators use it via TOOLS_DIR.
+td="{{.ToolsDir}}"
+if [ -d "$td/.git" ]; then
+  git -C "$td" checkout -- . 2>/dev/null || true
+  git -C "$td" pull --ff-only -q 2>/dev/null || true
+else
+  git clone --depth 1 https://github.com/medik8s/tools "$td"
+fi
+if ! grep -q 'run bundle "$(DEV_OLM_BUNDLE_IMAGE)" --timeout' "$td/dev/dev.mk" 2>/dev/null; then
+  sed -i 's|run bundle "$(DEV_OLM_BUNDLE_IMAGE)"|& --timeout={{.BundleTimeout}}|' "$td/dev/dev.mk" 2>/dev/null || true
+fi
+grep -q 'run bundle "$(DEV_OLM_BUNDLE_IMAGE)" --timeout' "$td/dev/dev.mk" 2>/dev/null \
+  || echo "WARN: could not patch dev.mk run-bundle timeout (layout changed?)" >&2
