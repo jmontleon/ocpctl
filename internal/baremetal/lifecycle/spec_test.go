@@ -47,6 +47,15 @@ func TestParseNodeSize(t *testing.T) {
 	assert.Equal(t, 16, r)
 }
 
+func TestRHWAMethod(t *testing.T) {
+	in := testInput()
+	assert.Equal(t, rhwaMethodCatalog, rhwaMethod(in)) // unset defaults to catalog
+	in.BareMetal.RHWAInstallMethod = "none"
+	assert.Equal(t, rhwaMethodNone, rhwaMethod(in))
+	in.BareMetal.RHWAInstallMethod = "source"
+	assert.Equal(t, rhwaMethodSource, rhwaMethod(in))
+}
+
 func TestNetGatewayAndMirrorVersion(t *testing.T) {
 	assert.Equal(t, "192.168.126.1", netGateway("192.168.126.0/24"))
 	assert.Equal(t, "stable-4.22", mirrorVersion("4.22"))

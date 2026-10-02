@@ -187,6 +187,12 @@ type BareMetalConfig struct {
 	// already exists.
 	AllowCIDRs []string `yaml:"allowCIDRs,omitempty" json:"allow_cidrs,omitempty"`
 
+	// RHWAInstallMethod selects how the RHWA/Medik8s operators are installed:
+	// "catalog" (default) subscribes via OLM from redhat-operators; "source"
+	// builds+deploys each from upstream via its make dev-olm-deploy; "none" skips
+	// the operators (and fence_redfish fencing) entirely.
+	RHWAInstallMethod string `yaml:"rhwaInstallMethod,omitempty" json:"rhwa_install_method,omitempty"`
+
 	ODF *ODFConfig `yaml:"odf,omitempty" json:"odf,omitempty"` // optional ODF-external + single-VM Ceph
 }
 

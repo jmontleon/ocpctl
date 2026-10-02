@@ -83,12 +83,16 @@ func Create(ctx context.Context, out io.Writer, in Input) (*Result, error) {
 
 	// Post-install: RHWA operators + fence_redfish fencing, then metal3 BMHs and
 	// worker provisioning (rhwa-lab order: operators -> fencing -> bmh -> workers).
-	rs := buildRHWASpec(in, pr.Nodes, pr.UUIDs, user, pass)
-	if err := rhwa.InstallOperators(ctx, c, rs); err != nil {
-		return nil, fmt.Errorf("baremetal create operators: %w", err)
-	}
-	if err := rhwa.ConfigureFencing(ctx, c, rs); err != nil {
-		return nil, fmt.Errorf("baremetal create fencing: %w", err)
+	// A "none" install method skips the operators and fencing entirely (fencing
+	// needs FAR); "catalog"/"source" install then fence.
+	if rhwaMethod(in) != rhwaMethodNone {
+		rs := buildRHWASpec(in, pr.Nodes, pr.UUIDs, user, pass)
+		if err := rhwa.InstallOperators(ctx, c, rs); err != nil {
+			return nil, fmt.Errorf("baremetal create operators: %w", err)
+		}
+		if err := rhwa.ConfigureFencing(ctx, c, rs); err != nil {
+			return nil, fmt.Errorf("baremetal create fencing: %w", err)
+		}
 	}
 	m3 := buildMetal3Spec(in, pr.Nodes, pr.UUIDs, user, pass)
 	if err := metal3.ConfigureBMH(ctx, c, m3); err != nil {

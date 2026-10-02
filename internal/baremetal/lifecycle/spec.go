@@ -227,6 +227,21 @@ func buildMetal3Spec(in Input, nodes []host.VM, uuids map[string]string, user, p
 
 const cephMAC = "52:54:00:6a:03:00" // role byte 03 (masters 01, workers 02) so it can't collide
 
+// RHWA operator install methods (profile baremetal.rhwaInstallMethod).
+const (
+	rhwaMethodCatalog = "catalog" // OLM Subscription from redhat-operators (default)
+	rhwaMethodSource  = "source"  // build + deploy from upstream via make dev-olm-deploy
+	rhwaMethodNone    = "none"    // skip the operators (and fence_redfish) entirely
+)
+
+// rhwaMethod returns the profile's RHWA install method, defaulting to catalog.
+func rhwaMethod(in Input) string {
+	if in.BareMetal != nil && in.BareMetal.RHWAInstallMethod != "" {
+		return in.BareMetal.RHWAInstallMethod
+	}
+	return rhwaMethodCatalog
+}
+
 // odfEnabled reports whether the profile turns on ODF-external.
 func odfEnabled(in Input) bool {
 	return in.BareMetal != nil && in.BareMetal.ODF != nil && in.BareMetal.ODF.Enabled
