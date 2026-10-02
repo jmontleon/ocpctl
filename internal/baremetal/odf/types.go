@@ -20,6 +20,7 @@ const (
 	defaultOSVariant   = "centos-stream9"
 	defaultCephRelease = "squid"
 	defaultRBDPool     = "ocs-storagepool"
+	defaultCephFSName  = "ocs-storagefs"
 	defaultExporterURL = "https://raw.githubusercontent.com/rook/rook/master/deploy/examples/create-external-cluster-resources.py"
 	defaultCloudImage  = "https://cloud.centos.org/centos/9-stream/x86_64/images/CentOS-Stream-GenericCloud-9-latest.x86_64.qcow2"
 
@@ -74,6 +75,11 @@ type Spec struct {
 	PoolReplica  int
 	PoolUsableGB int
 	ExporterURL  string
+
+	// CephFS (RWX). When enabled, bootstrap creates a CephFS + MDS and the
+	// exporter advertises it, so ODF also creates the cephfs StorageClass.
+	CephFSEnabled bool
+	CephFSName    string // ocs-storagefs
 }
 
 func (s Spec) ns() string {
@@ -88,6 +94,13 @@ func (s Spec) sshUser() string {
 		return s.SSHUser
 	}
 	return defaultSSHUser
+}
+
+func (s Spec) cephFSName() string {
+	if s.CephFSName != "" {
+		return s.CephFSName
+	}
+	return defaultCephFSName
 }
 
 func (s Spec) rbdPool() string {

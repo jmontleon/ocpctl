@@ -35,6 +35,8 @@ type renderData struct {
 	OSDCount       int
 	PGNum          int
 	ExporterURL    string
+	CephFSEnabled  bool
+	CephFSName     string
 	// oc-applied manifests
 	Namespace string
 	Channel   string
@@ -78,6 +80,8 @@ func newRenderData(spec Spec, channel string) renderData {
 		OSDCount:      spec.OSDCount,
 		PGNum:         pgNum,
 		ExporterURL:   spec.exporterURL(),
+		CephFSEnabled: spec.CephFSEnabled,
+		CephFSName:    spec.cephFSName(),
 		Namespace:     spec.ns(),
 		Channel:       channel,
 		OC:            ocCmd,

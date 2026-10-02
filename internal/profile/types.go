@@ -206,6 +206,10 @@ type ODFConfig struct {
 	CephRootDiskGB   int    `yaml:"cephRootDiskGB,omitempty" json:"ceph_root_disk_gb,omitempty"`
 	CephRelease      string `yaml:"cephRelease,omitempty" json:"ceph_release,omitempty"`
 	CloudImageURL    string `yaml:"cloudImageURL,omitempty" json:"cloud_image_url,omitempty"`
+	// CephFS enables a CephFS (RWX) StorageClass alongside the RBD (RWO) one.
+	// nil defaults to true (matches rhwa-lab); set false for RBD-only.
+	CephFS     *bool  `yaml:"cephFS,omitempty" json:"ceph_fs,omitempty"`
+	CephFSName string `yaml:"cephFSName,omitempty" json:"ceph_fs_name,omitempty"`
 }
 
 // AWSConfig contains AWS-specific settings

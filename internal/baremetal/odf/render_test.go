@@ -70,6 +70,29 @@ func TestRenderBootstrap(t *testing.T) {
 	assert.Contains(t, out, "-ge 3 ]]") // waits for 3 OSDs up
 	assert.Contains(t, out, "ceph osd pool set 'ocs-storagepool' size 3")
 	assert.Contains(t, out, "mgr module enable prometheus")
+	// No CephFS block unless enabled.
+	assert.NotContains(t, out, "ceph fs volume create")
+}
+
+func TestRenderCephFS(t *testing.T) {
+	s := testSpec()
+	s.CephFSEnabled = true // name defaults to ocs-storagefs
+	bs, err := renderBootstrap(s)
+	require.NoError(t, err)
+	assert.Contains(t, bs, "ceph fs volume create 'ocs-storagefs' --placement='1'")
+	assert.Contains(t, bs, "ceph fs status 'ocs-storagefs'") // waits for active MDS
+	assert.Contains(t, bs, `select(.name=="ocs-storagefs")`) // resolves data pool
+
+	ex, err := renderExport(s)
+	require.NoError(t, err)
+	assert.Contains(t, ex, "--cephfs-filesystem-name 'ocs-storagefs'")
+
+	// Disabled: neither template mentions CephFS.
+	s.CephFSEnabled = false
+	bs2, _ := renderBootstrap(s)
+	ex2, _ := renderExport(s)
+	assert.NotContains(t, bs2, "ceph fs volume create")
+	assert.NotContains(t, ex2, "--cephfs-filesystem-name")
 }
 
 func TestRenderBootstrap_ImageDerivedFromRelease(t *testing.T) {

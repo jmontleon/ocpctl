@@ -306,7 +306,18 @@ func buildODFSpec(in Input, sshPubKey string) odf.Spec {
 		Release:       o.CephRelease,
 		PoolReplica:   odfReplica(in),
 		PoolUsableGB:  odfPoolUsable(in),
+		CephFSEnabled: odfCephFSEnabled(in),
+		CephFSName:    o.CephFSName,
 	}
+}
+
+// odfCephFSEnabled reports whether to deploy CephFS alongside RBD. Defaults to
+// true (rhwa-lab CEPH_FS_ENABLED); an explicit odf.cephFS:false opts out.
+func odfCephFSEnabled(in Input) bool {
+	if in.BareMetal.ODF != nil && in.BareMetal.ODF.CephFS != nil {
+		return *in.BareMetal.ODF.CephFS
+	}
+	return true
 }
 
 func buildRHWASpec(in Input, nodes []host.VM, uuids map[string]string, user, pass string) rhwa.Spec {

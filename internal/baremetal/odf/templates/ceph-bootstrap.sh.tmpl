@@ -59,7 +59,23 @@ CEPH ceph osd pool set '{{.RBDPool}}' size {{.PoolReplica}}
 CEPH ceph osd pool set '{{.RBDPool}}' min_size 2
 CEPH ceph osd pool application enable '{{.RBDPool}}' rbd 2>&1 || true
 CEPH rbd pool init '{{.RBDPool}}'
-# ceph-mgr prometheus module (port 9283): the external-details exporter needs it.
+{{if .CephFSEnabled}}# CephFS (RWX) for ODF's cephfs StorageClass. `fs volume create` makes the
+# filesystem's metadata+data pools and deploys an MDS via the orchestrator;
+# --placement='1' keeps it to a single daemon on this one host. Resolve the data
+# pool (its name varies by ceph version) and apply the same replica/min_size as
+# the RBD pool, then wait for an active MDS so the exporter won't fail.
+echo "--- creating CephFS {{.CephFSName}} ---"
+CEPH ceph fs volume create '{{.CephFSName}}' --placement='1' 2>&1 || true
+fsdata=$(CEPH ceph fs ls -f json 2>/dev/null | jq -r '.[] | select(.name=="{{.CephFSName}}") | .data_pools[0]' 2>/dev/null || echo '')
+if [[ -n "${fsdata}" && "${fsdata}" != "null" ]]; then
+  CEPH ceph osd pool set "${fsdata}" size {{.PoolReplica}}
+  CEPH ceph osd pool set "${fsdata}" min_size 2
+else
+  echo "WARN: could not resolve CephFS data pool for '{{.CephFSName}}'; leaving pool defaults" >&2
+fi
+for i in $(seq 1 24); do CEPH ceph fs status '{{.CephFSName}}' 2>/dev/null | grep -q active && break; sleep 5; done
+CEPH ceph fs status '{{.CephFSName}}' 2>/dev/null | grep -q active || echo "WARN: CephFS '{{.CephFSName}}' has no active MDS yet; the exporter may fail." >&2
+{{end}}# ceph-mgr prometheus module (port 9283): the external-details exporter needs it.
 CEPH ceph mgr module enable prometheus
 for i in $(seq 1 18); do
   CEPH ceph mgr services 2>/dev/null | grep -q prometheus && break
