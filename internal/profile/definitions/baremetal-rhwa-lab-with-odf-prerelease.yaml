@@ -16,7 +16,7 @@ openshiftVersions:
   - 5.0.0-rc.1
   - 5.0.0-rc.2
   - 5.0.0-0.nightly
-  default: 5.0.0-rc.2
+  default: 5.0.0-0.nightly
 regions:
   allowlist:
   - us-east-1
