@@ -1,5 +1,5 @@
 name: baremetal-rhwa-lab-with-odf-prerelease-no-operators
-displayName: Emulated Bare Metal RHWA Lab with ODF, No Operators (Agent-Based, Prerelease)
+displayName: Emulated Bare Metal RHWA Lab with ODF, No Operators (Prerelease)
 description: Pre-release (RC) variant of the bare-metal RHWA lab for testing RHWA/ODF
   on OpenShift 5.0 release candidates. Same nested-virt EC2 host + libvirt VMs +
   sushy-tools BMCs + Agent-Based Installer as the GA profile; ships an RC OCP

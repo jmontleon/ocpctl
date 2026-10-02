@@ -1,5 +1,5 @@
 name: baremetal-rhwa-lab-no-operators
-displayName: Emulated Bare Metal RHWA Lab, No Operators (Agent-Based)
+displayName: Emulated Bare Metal RHWA Lab, No Operators
 description: Compact 3-node agent-based cluster on a nested-virt EC2 host for RHWA/Medik8s
   node remediation testing. Provisions the host, libvirt VMs and sushy-tools BMCs,
   then installs via the Agent-Based Installer. Workers join post-install via a metal3
