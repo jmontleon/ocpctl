@@ -21,6 +21,12 @@ const (
 	defaultFedoraRelease = "44"
 	defaultHostVolumeGB  = 1000
 	defaultUser          = "fedora"
+
+	// gp3 root-volume performance, set at launch. The nested cluster + ceph OSDs
+	// are I/O heavy, so provision above the free gp3 baseline (3000 IOPS /
+	// 125 MiB/s). Values match rhwa-lab.
+	hostVolumeIOPS       = 12000
+	hostVolumeThroughput = 500
 )
 
 // LaunchSpec is built by the caller from the profile's BareMetalConfig plus the

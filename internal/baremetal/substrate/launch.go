@@ -259,6 +259,8 @@ func runHost(ctx context.Context, c clients, spec LaunchSpec, imageID, rootDev, 
 			Ebs: &ec2types.EbsBlockDevice{
 				VolumeSize:          aws.Int32(int32(spec.HostVolumeGB)),
 				VolumeType:          ec2types.VolumeTypeGp3,
+				Iops:                aws.Int32(hostVolumeIOPS),
+				Throughput:          aws.Int32(hostVolumeThroughput),
 				DeleteOnTermination: aws.Bool(true),
 			},
 		}},
